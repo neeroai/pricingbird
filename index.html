@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evaluación Interactiva: Bird.com para Koaj.co con IA ✨</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Visualization & Content Choices:
+        - Report Info: Executive Summary -> Goal: Inform -> Presentation: Text blocks -> Interaction: None -> Justification: Direct summary of key findings.
+        - Report Info: Bird.com Capabilities (Sec 2) -> Goal: Inform/Explore -> Presentation: Cards with icons for key features. Gemini API added for personalized content examples. -> Interaction: Click to expand/reveal more details/concerns for each capability. Button to trigger Gemini API. -> Justification: Organizes diverse features for clarity and allows focused exploration, enhanced with AI examples.
+        - Report Info: Pricing Tiers (Table 1) -> Goal: Inform/Compare -> Presentation: Interactive HTML Table -> Interaction: Hover for feature details (if applicable), clear presentation of tiers -> Justification: Clear presentation of structured pricing data.
+        - Report Info: Messaging Costs (Table 2 & text) -> Goal: Inform/Illustrate -> Presentation: Bar Chart (Chart.js) comparing estimated WhatsApp/SMS cost ranges per message type -> Interaction: View chart, tooltips on bars for exact values -> Justification: Visually compares messaging costs, making them easier to grasp.
+        - Report Info: Customer Journeys (Sec 4 & Table 3) -> Goal: Understand/Visualize -> Presentation: Accordion for each journey type. Gemini API added for content ideas per journey. -> Interaction: Click to expand journey types and specific journey details. Button to trigger Gemini API. -> Justification: Makes complex journey information structured and accessible, enhanced with AI brainstorming.
+        - Library/Method: Vanilla JS for interactions (tabs, accordions, Gemini API calls), Chart.js for cost visualization. Tailwind for layout and styling.
+        - CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #FDFBF6; color: #3A3A3A; }
+        .tab-button { transition: all 0.3s ease; }
+        .tab-button.active { border-color: #4A90E2; color: #4A90E2; background-color: #EAF2FA; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .card { background-color: #FFFFFF; border-radius: 0.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); padding: 1.5rem; margin-bottom: 1rem; }
+        .card-title { font-size: 1.25rem; font-weight: 600; color: #2C5282; margin-bottom: 0.75rem; }
+        .card h3 { font-size: 1.1rem; font-weight: 600; color: #3A3A3A; margin-top:1rem; margin-bottom: 0.5rem;}
+        .card p, .card li { color: #4A5568; line-height: 1.6; }
+        .accordion-button { background-color: #F4F6F8; border: 1px solid #E2E8F0; color: #2D3748; text-align: left; padding: 1rem; width: 100%; border-radius: 0.375rem; cursor: pointer; transition: background-color 0.3s ease; }
+        .accordion-button:hover { background-color: #E2E8F0; }
+        .accordion-content { display: none; padding: 1rem; border: 1px solid #E2E8F0; border-top: 0; border-radius: 0 0 0.375rem 0.375rem; background-color: #FFFFFF;}
+        .chart-container { position: relative; width: 100%; max-width: 700px; margin-left: auto; margin-right: auto; height: 350px; max-height: 400px; padding: 1rem; background-color: #FFFFFF; border-radius: 0.5rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); }
+        @media (min-width: 768px) { .chart-container { height: 400px; } }
+        .table-container { max-width: 100%; overflow-x: auto; }
+        th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #E2E8F0; }
+        th { background-color: #F4F6F8; font-weight: 600; }
+        .badge { display: inline-block; padding: 0.25em 0.6em; font-size: 0.75em; font-weight: 700; line-height: 1; text-align: center; white-space: nowrap; vertical-align: baseline; border-radius: 0.25rem; }
+        .badge-blue { background-color: #EAF2FA; color: #4A90E2; }
+        .badge-green { background-color: #E6FFFA; color: #38A169; }
+        .badge-orange { background-color: #FFF5E9; color: #DD6B20; }
+        .icon { display: inline-block; width: 1.25em; height: 1.25em; margin-right: 0.5em; vertical-align: text-bottom; }
+        .gemini-button {
+            background-color: #6366F1; /* Indigo */
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-weight: 500;
+            transition: background-color 0.3s ease;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            margin-top: 0.75rem;
+        }
+        .gemini-button:hover { background-color: #4F46E5; }
+        .gemini-output {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #F9FAFB; /* Cool Gray 50 */
+            border: 1px solid #E5E7EB; /* Cool Gray 200 */
+            border-radius: 0.375rem;
+            white-space: pre-wrap; /* Preserve formatting from LLM */
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        .loading-spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border-left-color: #4A90E2; /* Blue accent */
+            animation: spin 1s ease infinite;
+            display: none; /* Hidden by default */
+            margin: 1rem auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <header class="bg-gradient-to-r from-blue-600 to-teal-500 text-white py-8 shadow-lg">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <h1 class="text-3xl sm:text-4xl font-bold text-center">Evaluación Interactiva: Bird.com para Koaj.co con IA ✨</h1>
+            <p class="text-center mt-2 text-lg opacity-90">Análisis de la plataforma de marketing automation y su aplicabilidad para el e-commerce de moda, ahora con funciones de IA.</p>
+        </div>
+    </header>
+
+    <nav class="bg-white shadow-md sticky top-0 z-50">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-wrap justify-center -mb-px">
+                <button class="tab-button active text-sm sm:text-base font-medium py-3 px-3 sm:px-5 border-b-2 border-transparent hover:border-gray-300 focus:outline-none" data-tab="resumen">
+                    <span class="icon">📄</span>Resumen Ejecutivo
+                </button>
+                <button class="tab-button text-sm sm:text-base font-medium py-3 px-3 sm:px-5 border-b-2 border-transparent hover:border-gray-300 focus:outline-none" data-tab="capacidades">
+                    <span class="icon">🛠️</span>Capacidades de Bird.com
+                </button>
+                <button class="tab-button text-sm sm:text-base font-medium py-3 px-3 sm:px-5 border-b-2 border-transparent hover:border-gray-300 focus:outline-none" data-tab="precios">
+                    <span class="icon">💲</span>Análisis de Precios
+                </button>
+                <button class="tab-button text-sm sm:text-base font-medium py-3 px-3 sm:px-5 border-b-2 border-transparent hover:border-gray-300 focus:outline-none" data-tab="journeys">
+                    <span class="icon">🗺️</span>Customer Journeys
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <div id="resumen" class="tab-content active card">
+            <h2 class="text-2xl font-semibold mb-4 text-blue-700">Resumen Ejecutivo del Análisis</h2>
+            <p class="mb-3">Este análisis evalúa la plataforma Bird.com en cuanto a su estructura de precios y capacidades de automatización de marketing, enfocándose en su aplicabilidad para las campañas masivas y la gestión de <em>customer journeys</em> (nutrición, conversión y ventas) de Koaj.co en Colombia.</p>
+            <p class="mb-3">Bird.com se presenta como una solución omnicanal robusta con un constructor visual de <em>journeys</em>, segmentación avanzada y personalización impulsada por IA, y un modelo de precios transparente para mensajería SMS y WhatsApp.</p>
+            <h3 class="font-semibold text-lg mt-4 mb-2">Principales Conclusiones:</h3>
+            <ul class="list-disc list-inside space-y-2">
+                <li>Bird.com podría ser una solución viable para Koaj.co, considerando ciertos factores críticos.</li>
+                <li>Su estructura de precios basada en contactos, con costos de mensajería transferidos sin recargo, ofrece potencial de ahorro pero requiere gestión presupuestaria diligente.</li>
+                <li>Las capacidades para crear <em>journeys</em> personalizados son amplias; la efectividad de la IA dependerá de la calidad e integración de datos de Koaj.co.</li>
+                <li>La carga operativa para contenido personalizado y la necesidad de asegurar óptima entregabilidad local en Colombia son consideraciones importantes.</li>
+            </ul>
+            <h3 class="font-semibold text-lg mt-4 mb-2">Recomendación General (del reporte original):</h3>
+            <p>Se recomienda a Koaj.co realizar una evaluación detallada de sus necesidades de volumen, auditar su infraestructura de datos, y planificar recursos para personalización. Una prueba piloto y una demostración personalizada son cruciales antes de una implementación a gran escala.</p>
+        </div>
+
+        <div id="capacidades" class="tab-content">
+            <div class="card">
+                <h2 class="text-2xl font-semibold mb-6 text-blue-700">Capacidades Clave de Bird.com para Koaj.co</h2>
+                <p class="mb-6">Bird.com se posiciona como una suite de marketing omnicanal "IA primero" y "todo en uno", diseñada para unificar datos de clientes, automatizar campañas e impulsar ventas. A continuación, se exploran sus funcionalidades más relevantes para un e-commerce de moda como Koaj.co y las consideraciones asociadas.</p>
+
+                <div class="space-y-6">
+                    <div>
+                        <button class="accordion-button flex justify-between items-center">
+                            <span><span class="icon">🎨</span>Constructor Visual de Journeys y Automatización</span>
+                            <span class="arrow-icon transform transition-transform duration-300">▼</span>
+                        </button>
+                        <div class="accordion-content">
+                            <p><strong>Funcionalidad:</strong> Bird.com ofrece un "Flow Builder" visual para diseñar flujos de marketing personalizados (arrastrar y soltar, sin código). Activación por más de 100 integraciones/APIs (eventos de e-commerce como "inicio de pago", "vistas de producto"). Orquestación multicanal (Email, SMS, WhatsApp, etc.) con <em>smart fallbacks</em>. Plantillas preconstruidas para escenarios de e-commerce.</p>
+                            <p class="mt-2"><strong>Relevancia para Koaj.co:</strong> Crucial para crear y adaptar <em>journeys</em> rápidamente. Integración vital para automatizar respuestas basadas en comportamiento en tiempo real. Plantillas pueden acelerar implementación.</p>
+                            <p class="mt-2"><strong>Consideración Crítica:</strong> Evaluar si el entorno "sin código" es suficientemente flexible para <em>journeys</em> de moda complejos. La simplicidad podría enmascarar limitaciones para escenarios altamente personalizados, requiriendo potencialmente el uso de APIs más técnicas.</p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <button class="accordion-button flex justify-between items-center">
+                            <span><span class="icon">🎯</span>Segmentación Avanzada y Focalización</span>
+                            <span class="arrow-icon transform transition-transform duration-300">▼</span>
+                        </button>
+                        <div class="accordion-content">
+                            <p><strong>Funcionalidad:</strong> Creación de segmentos de usuarios precisos y dinámicos (vistas de página, compras, ubicación, interacciones). Segmentación impulsada por IA para identificar patrones y crear segmentos matizados (comportamiento, preferencias, etapa del ciclo de vida). Actualización en tiempo real. Integración de datos de CRM, ERP, CDP, e-commerce.</p>
+                            <p class="mt-2"><strong>Relevancia para Koaj.co:</strong> Fundamental para adaptar campañas a grupos específicos y descubrir oportunidades ocultas. Dinamismo asegura relevancia continua.</p>
+                            <p class="mt-2"><strong>Consideración Crítica:</strong> La efectividad de la IA depende de la calidad y exhaustividad de los datos de Koaj.co. Una auditoría de datos y mejoras en higiene/integración son prerrequisitos para maximizar el ROI de esta función.</p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <button class="accordion-button flex justify-between items-center">
+                            <span><span class="icon">✨</span>Motor de Personalización (Contenido Dinámico, IA)</span>
+                            <span class="arrow-icon transform transition-transform duration-300">▼</span>
+                        </button>
+                        <div class="accordion-content">
+                            <p><strong>Funcionalidad:</strong> Personalización a escala con variables dinámicas y datos de clientes. Bloques de contenido dinámico ajustables. Escritura asistida por IA para líneas de asunto, cuerpo de mensajes (Email, WhatsApp). Sugerencias automáticas de productos (integración Shopify). Chatbots IA para conversaciones personalizadas.</p>
+                            <p class="mt-2"><strong>Relevancia para Koaj.co:</strong> Personalizar recomendaciones, ofertas y contenido. Ahorro de tiempo para equipo de contenido. Mejora de servicio al cliente.</p>
+                            <p class="mt-2"><strong>Consideración Crítica:</strong> La carga operativa de crear y gestionar contenido personalizado para un catálogo de moda diverso puede ser considerable, incluso con IA. La efectividad de la IA para "personalizar verdaderamente a escala" sin intervención manual significativa para moda es un factor clave. Se recomienda una prueba piloto.</p>
+                            <button class="gemini-button" id="generatePersonalizedContentBtn">
+                                ✨ Generar Ejemplos de Contenido Personalizado con IA
+                            </button>
+                            <div class="loading-spinner" id="personalizedContentSpinner"></div>
+                            <div class="gemini-output" id="personalizedContentOutput" style="display:none;"></div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <button class="accordion-button flex justify-between items-center">
+                            <span><span class="icon">📊</span>Pruebas A/B y Optimización de Campañas</span>
+                            <span class="arrow-icon transform transition-transform duration-300">▼</span>
+                        </button>
+                        <div class="accordion-content">
+                            <p><strong>Funcionalidad:</strong> Pruebas A/B para optimizar líneas de asunto, CTAs, imágenes, basándose en CTR, tasa de lectura, tasa de apertura. Tamaño de prueba, duración y fallback configurables. Pruebas A/B automatizadas para secuencias de automatización de correo.</p>
+                            <p class="mt-2"><strong>Relevancia para Koaj.co:</strong> Esencial para mejorar continuamente el rendimiento de campañas.</p>
+                            <p class="mt-2"><strong>Consideración Crítica:</strong> Aclarar si las pruebas A/B se aplican a rutas completas de <em>journey</em> o solo a componentes de mensajes. Optimizar secuencias completas es importante para Koaj.co.</p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <button class="accordion-button flex justify-between items-center">
+                            <span><span class="icon">📈</span>Analíticas e Informes Integrados</span>
+                            <span class="arrow-icon transform transition-transform duration-300">▼</span>
+                        </button>
+                        <div class="accordion-content">
+                            <p><strong>Funcionalidad:</strong> Analíticas multicanal (vistas, visitantes, carritos, interacción, conversión). Datos detallados sobre entregabilidad e informes personalizables. Analíticas de <em>journey</em> (rendimiento por segmento y paso). Perspectivas impulsadas por IA (tendencias, predicciones, anomalías).</p>
+                            <p class="mt-2"><strong>Relevancia para Koaj.co:</strong> Vista unificada para comprender efectividad general. Identificar áreas de mejora.</p>
+                            <p class="mt-2"><strong>Consideración Crítica:</strong> Para SMS/WhatsApp, donde Bird.com es intermediario, la entregabilidad final depende de operadores externos/Meta. Koaj.co necesita entender la transparencia de las analíticas en esta cadena y la granularidad de los informes de entregabilidad para distinguir problemas de plataforma vs. operador.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="precios" class="tab-content">
+            <div class="card">
+                <h2 class="text-2xl font-semibold mb-6 text-blue-700">Análisis de la Estructura de Precios de Bird.com</h2>
+                <p class="mb-6">El modelo de precios de Bird.com se basa principalmente en el número de contactos, con costos adicionales para la mensajería SMS y WhatsApp que se transfieren directamente de los proveedores (Meta, operadores) sin recargo por parte de Bird.com. Es crucial entender todos los componentes para estimar el Costo Total de Propiedad (TCO).</p>
+
+                <h3 class="card-title mt-4">Niveles del Plan de Marketing y Características</h3>
+                <div class="table-container mb-6">
+                    <table class="min-w-full">
+                        <thead>
+                            <tr>
+                                <th>Nivel del Plan (Contactos Mensuales)</th>
+                                <th>Costo Mensual (Contrato Anual)</th>
+                                <th>Envíos Mensuales Incluidos (Email/SMS/WhatsApp)</th>
+                                <th class="w-1/3">Características Clave Incluidas</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Hasta 3,000</td>
+                                <td>Desde $45</td>
+                                <td>Hasta 30,000</td>
+                                <td>Journeys, CDP, Segmentación, Personalización, Analíticas, Cobertura global SMS/WhatsApp, Integraciones, Cumplimiento GDPR</td>
+                            </tr>
+                            <tr><td>Hasta 10,000</td><td>Contactar para precio</td><td>Variable</td><td>Ídem</td></tr>
+                            <tr><td>Hasta 20,000</td><td>Contactar para precio</td><td>Variable</td><td>Ídem</td></tr>
+                            <tr><td>Hasta 30,000</td><td>Contactar para precio</td><td>Variable</td><td>Ídem</td></tr>
+                            <tr><td>Hasta 40,000</td><td>Contactar para precio</td><td>Variable</td><td>Ídem</td></tr>
+                            <tr><td>Hasta 50,000</td><td>Contactar para precio</td><td>Variable</td><td>Ídem</td></tr>
+                            <tr>
+                                <td>Enterprise (>50,000)</td>
+                                <td>Personalizado</td>
+                                <td>Ilimitados</td>
+                                <td>Todas las características del plan estándar más posibles características empresariales avanzadas y soporte personalizado</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-sm text-gray-600 mb-4"><em>Nota: Detalles exactos de envíos y precios para niveles >3,000 contactos deben confirmarse con Bird.com. Precios listados para contratos anuales pagados por adelantado.</em></p>
+                <p class="mb-4"><strong>Consideración Crítica:</strong> La afirmación "todas las características incluidas" necesita aclaración. Koaj.co debe confirmar si funcionalidades avanzadas (IA, integraciones específicas) son parte de los niveles estándar sin umbrales ocultos o si requieren el plan Enterprise. Esto es vital para evitar costos inesperados.</p>
+
+                <h3 class="card-title mt-8">Costos de Mensajería Adicional (SMS y WhatsApp)</h3>
+                <p class="mb-4">Bird.com transfiere las tarifas de WhatsApp (Meta) y SMS (operadores) sin recargo. Koaj.co debe presupuestar estos costos variables directamente.</p>
+                <div class="chart-container mb-6">
+                    <canvas id="messagingCostsChart"></canvas>
+                </div>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-semibold text-lg mb-2">WhatsApp (Tarifas de Meta para Colombia - Estimadas)</h4>
+                        <ul class="list-disc list-inside space-y-1">
+                            <li>Marketing: ~$0.0144 USD / conversación</li>
+                            <li>Utilidad: ~$0.0002 USD / conversación (verificar esta tarifa)</li>
+                            <li>Autenticación: ~$0.0089 USD / conversación</li>
+                            <li>Servicio (iniciado por usuario): Generalmente $0.00 USD</li>
+                        </ul>
+                        <p class="text-sm text-gray-600 mt-1"><em>Sujeto a ventana de conversación de 24h.</em></p>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-lg mb-2">SMS (Envío a Colombia - Estimado)</h4>
+                        <ul class="list-disc list-inside space-y-1">
+                            <li>Rango típico: ~$0.0213 - $0.0335 USD / mensaje</li>
+                            <li>Varía por proveedor (ej. Releans, Twilio) y volumen.</li>
+                        </ul>
+                    </div>
+                </div>
+                <p class="mt-4"><strong>Consideración Crítica:</strong> La política de "sin recargo" es positiva, pero Koaj.co asume la responsabilidad de gestionar costos fluctuantes de Meta/operadores. Esto traslada el riesgo de variabilidad de costos al cliente y requiere un monitoreo robusto.</p>
+
+                <h3 class="card-title mt-8">Costos Potenciales de Funciones Adicionales</h3>
+                <p class="mb-2">Bird.com lista varias funciones con "precios personalizados" que podrían ser relevantes:</p>
+                <ul class="list-disc list-inside space-y-1">
+                    <li>PowerMTA (autoalojado)</li>
+                    <li>Email Analytics (ubicación en bandeja de entrada)</li>
+                    <li>Competitive Tracker</li>
+                    <li>Email Recipient Validation</li>
+                    <li>Planes de soporte avanzados</li>
+                    <li>Developer Cloud (APIs)</li>
+                    <li>Service Cloud (>2 puestos)</li>
+                </ul>
+                <p class="mt-2">Koaj.co debe determinar si alguna de estas es esencial, ya que representarían costos adicionales al TCO.</p>
+            </div>
+        </div>
+
+        <div id="journeys" class="tab-content">
+            <div class="card">
+                 <h2 class="text-2xl font-semibold mb-6 text-blue-700">Diseño de Customer Journeys de Alto Impacto para Koaj.co</h2>
+                <p class="mb-6">Utilizando las capacidades de Bird.com, Koaj.co puede construir *customer journeys* efectivos para nutrir prospectos, optimizar la conversión e impulsar la lealtad. El contenido visual y la personalización son primordiales para una marca de moda.</p>
+
+                <div>
+                    <button class="accordion-button flex justify-between items-center mb-2">
+                        <span><span class="icon">🌱</span>Journeys de Nutrición Fundamentales</span>
+                        <span class="arrow-icon transform transition-transform duration-300">▼</span>
+                    </button>
+                    <div class="accordion-content space-y-4">
+                        <div>
+                            <h4 class="font-semibold text-lg">Serie de Bienvenida para Nuevos Suscriptores</h4>
+                            <p><strong>Objetivo:</strong> Incorporar, presentar la marca Koaj.co, destacar propuestas de valor (diseño colombiano, calidad), fomentar primera compra.</p>
+                            <p><strong>Pasos Clave con Bird.com:</strong></p>
+                            <ol class="list-decimal list-inside ml-4 space-y-1">
+                                <li><strong>Inmediato (Email/WhatsApp):</strong> Bienvenida personalizada (Contenido Dinámico). Historia/misión de Koaj.co.</li>
+                                <li><strong>Día 2 (Email):</strong> Mostrar categorías top/nuevas colecciones (Contenido Dinámico si hay preferencias).</li>
+                                <li><strong>Día 4 (Email):</strong> Oferta primer pedido (descuento/envío gratis). Beneficios de ser suscriptor.</li>
+                                <li><strong>Día 7 (Email):</strong> UGC, selecciones de estilistas, presentar redes sociales.</li>
+                            </ol>
+                            <p class="mt-1"><strong>Bird.com:</strong> Formularios de Registro, Constructor de Journeys, Personalización.</p>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-lg">Nutrición de Prospectos (Interesados sin compra)</h4>
+                            <p><strong>Objetivo:</strong> Involucrar usuarios con interés (ej. descarga guía estilo, vistas de producto) pero sin compra.</p>
+                            <p><strong>Estrategia con Bird.com:</strong> Segmentar por interacciones (CDP, Segmentación). Entregar contenido específico (tendencias moda colombiana, lookbooks Koaj.co) vía journeys de email. Adaptar contenido según interacción (Seguimiento de Comportamiento).</p>
+                        </div>
+                        <p class="mt-2 text-orange-600"><span class="font-semibold">Consideración Crítica (Visual):</span> Para moda, el contenido visual es primordial. Asegurar que el *rich media* (imágenes, videos) se renderice bien en Colombia. Probar en diversos clientes de correo/dispositivos. Podrían necesitarse respaldos de texto plano/imágenes optimizadas.</p>
+                        <button class="gemini-button" data-journey-type="Nutrición" data-journey-name="Serie de Bienvenida y Nutrición de Prospectos">
+                           ✨ Sugerir Ideas de Contenido para Journeys de Nutrición con IA
+                        </button>
+                        <div class="loading-spinner" id="journeyNutricionSpinner"></div>
+                        <div class="gemini-output" id="journeyNutricionOutput" style="display:none;"></div>
+                    </div>
+                </div>
+
+                <div>
+                    <button class="accordion-button flex justify-between items-center mb-2 mt-4">
+                        <span><span class="icon">🛒</span>Optimización para la Conversión</span>
+                        <span class="arrow-icon transform transition-transform duration-300">▼</span>
+                    </button>
+                    <div class="accordion-content space-y-4">
+                        <div>
+                            <h4 class="font-semibold text-lg">Secuencias de Recuperación de Carrito Abandonado</h4>
+                            <p><strong>Objetivo:</strong> Reenganchar usuarios que añadieron artículos al carrito pero no compraron.</p>
+                            <p><strong>Journey Detallado (Tabla 3 del reporte):</strong></p>
+                            <div class="table-container my-3">
+                                <table class="min-w-full">
+                                    <thead><tr><th>Paso</th><th>Tiempo Estimado</th><th>Canal</th><th>Contenido Clave</th><th>Bird.com Utilizado</th></tr></thead>
+                                    <tbody>
+                                        <tr><td>1</td><td>1-3 horas</td><td>Email</td><td>Recordatorio amigable + Imágenes artículos</td><td>Contenido Dinámico, Segmentación</td></tr>
+                                        <tr><td>2</td><td>24 horas</td><td>Email</td><td>Prueba social (reseñas) + Urgencia (stock)</td><td>Contenido Dinámico, Personalización</td></tr>
+                                        <tr><td>3</td><td>48-72 horas</td><td>Email/WhatsApp</td><td>Oferta (descuento/envío) + CTA</td><td>Personalización, Pruebas A/B</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-lg">Retargeting por Abandono de Navegación</h4>
+                            <p><strong>Objetivo:</strong> Reenganchar usuarios que vieron productos/categorías pero no añadieron al carrito.</p>
+                            <p><strong>Estrategia con Bird.com:</strong> Usar Seguimiento Web y Segmentación. Activar journey mostrando artículos vistos/similares. Recomendaciones de productos dinámicas. Ejemplo: "¿Aún pensando en [Producto]? Mira novedades en [Categoría]".</p>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-lg">Automatizaciones de Recomendación y Venta Cruzada/Adicional</h4>
+                            <p><strong>Objetivo:</strong> Aumentar AOV sugiriendo artículos relevantes.</p>
+                            <p><strong>Estrategia con Bird.com:</strong> Durante pago o en correos post-compra, usar personalización IA para sugerir complementos ("Completa el look") o alternativas de mayor valor. Integrar con e-commerce para historial de compras.</p>
+                        </div>
+                        <button class="gemini-button" data-journey-type="Conversión" data-journey-name="Recuperación de Carrito, Retargeting y Recomendaciones">
+                           ✨ Sugerir Ideas de Contenido para Journeys de Conversión con IA
+                        </button>
+                        <div class="loading-spinner" id="journeyConversionSpinner"></div>
+                        <div class="gemini-output" id="journeyConversionOutput" style="display:none;"></div>
+                    </div>
+                </div>
+
+                <div>
+                    <button class="accordion-button flex justify-between items-center mb-2 mt-4">
+                        <span><span class="icon">💖</span>Impulso de Ventas, Lealtad y Promoción (Post-Compra)</span>
+                        <span class="arrow-icon transform transition-transform duration-300">▼</span>
+                    </button>
+                    <div class="accordion-content space-y-4">
+                        <div>
+                            <h4 class="font-semibold text-lg">Comunicaciones Transaccionales</h4>
+                            <p><strong>Objetivo:</strong> Actualizaciones oportunas de estado de pedido (confirmaciones, envío).</p>
+                            <p><strong>Bird.com:</strong> Automatizar vía Email/WhatsApp (mensajes de Utilidad). Incluir enlaces de seguimiento. Oportunidad para reforzar marca.</p>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-lg">Guías de Uso y Consejos de Estilo</h4>
+                            <p><strong>Objetivo:</strong> Ayudar a clientes a sacar provecho de compras, mejorar satisfacción.</p>
+                            <p><strong>Bird.com:</strong> Enviar consejos de estilo para artículos comprados, instrucciones de cuidado, enlaces a blog/videos "cómo usar". Personalizar según compra.</p>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-lg">Campañas de Generación de Reseñas y UGC</h4>
+                            <p><strong>Objetivo:</strong> Animar a clientes a dejar reseñas y compartir fotos con prendas Koaj.co.</p>
+                            <p><strong>Bird.com:</strong> Mensaje automatizado post-entrega solicitando reseña. Incentivar (descuento, sorteo). Campañas para compartir en redes con hashtag Koaj.co.</p>
+                        </div>
+                         <div>
+                            <h4 class="font-semibold text-lg">Interacción con Programa de Lealtad y Niveles VIP</h4>
+                            <p><strong>Objetivo:</strong> Recompensar clientes recurrentes, fomentar mayor LTV.</p>
+                            <p><strong>Bird.com:</strong> Enviar ofertas exclusivas, acceso anticipado a colecciones, recompensas de cumpleaños a segmentos leales. Automatizar comunicaciones sobre puntos/niveles. Invitar a unirse post-compra.</p>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-lg">Campañas de Reactivación para Clientes Inactivos</h4>
+                            <p><strong>Objetivo:</strong> Recuperar clientes que no han comprado en un tiempo.</p>
+                            <p><strong>Bird.com:</strong> Segmentar por fecha última compra. Enviar campaña "Te extrañamos" con oferta, mostrar nuevas colecciones, solicitar feedback.</p>
+                        </div>
+                        <p class="mt-2 text-orange-600"><span class="font-semibold">Consideración Crítica (Plantillas):</span> El éxito depende de plantillas de alta calidad y con marca consistente. Koaj.co necesitará personalizar extensamente o crear las suyas para reflejar su identidad visual única. Esto representa una inversión inicial creativa y de configuración.</p>
+                        <button class="gemini-button" data-journey-type="Ventas y Lealtad" data-journey-name="Post-Compra, Reseñas, Lealtad y Reactivación">
+                            ✨ Sugerir Ideas de Contenido para Journeys de Ventas/Lealtad con IA
+                        </button>
+                        <div class="loading-spinner" id="journeyLealtadSpinner"></div>
+                        <div class="gemini-output" id="journeyLealtadOutput" style="display:none;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="text-center py-8 mt-12 border-t border-gray-200 bg-gray-50">
+        <p class="text-sm text-gray-600">&copy; <span id="currentYear"></span> Análisis Interactivo para Koaj.co. Basado en el reporte de evaluación de Bird.com.</p>
+    </footer>
+
+    <script>
+        document.getElementById('currentYear').textContent = new Date().getFullYear();
+
+        const tabs = document.querySelectorAll('.tab-button');
+        const contents = document.querySelectorAll('.tab-content');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(item => item.classList.remove('active'));
+                tab.classList.add('active');
+
+                const target = tab.getAttribute('data-tab');
+                contents.forEach(content => {
+                    content.classList.remove('active');
+                    if (content.id === target) {
+                        content.classList.add('active');
+                    }
+                });
+            });
+        });
+
+        const accordionButtons = document.querySelectorAll('.accordion-button');
+        accordionButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const content = button.nextElementSibling;
+                const arrow = button.querySelector('.arrow-icon');
+                if (content.style.display === 'block') {
+                    content.style.display = 'none';
+                    if(arrow) arrow.classList.remove('rotate-180');
+                } else {
+                    content.style.display = 'block';
+                    if(arrow) arrow.classList.add('rotate-180');
+                }
+            });
+        });
+        
+        function formatLabel(str, maxwidth) {
+            if (str === undefined || str === null) return '';
+            const sections = [];
+            let words = String(str).split(" ");
+            let temp = "";
+            words.forEach((item, index) => {
+                if (temp.length > 0) {
+                    temp += " " + item;
+                } else {
+                    temp = item;
+                }
+                if (temp.length > maxwidth) {
+                    sections.push(temp);
+                    temp = "";
+                }
+            });
+            if (temp.length > 0) {
+                sections.push(temp);
+            }
+            return sections.length > 0 ? sections : str;
+        }
+
+        if (document.getElementById('messagingCostsChart')) {
+            const ctx = document.getElementById('messagingCostsChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Marketing WA', 'Utilidad WA', 'Autenticación WA', 'SMS (Rango Bajo)', 'SMS (Rango Alto)'],
+                    datasets: [{
+                        label: 'Costo Estimado por Mensaje/Conversación (USD)',
+                        data: [0.0144, 0.0002, 0.0089, 0.0213, 0.0335],
+                        backgroundColor: [
+                            'rgba(74, 144, 226, 0.7)', 
+                            'rgba(80, 200, 120, 0.7)', 
+                            'rgba(245, 166, 35, 0.7)',  
+                            'rgba(123, 104, 238, 0.7)', 
+                            'rgba(255, 99, 132, 0.7)'   
+                        ],
+                        borderColor: [
+                            'rgba(74, 144, 226, 1)',
+                            'rgba(80, 200, 120, 1)',
+                            'rgba(245, 166, 35, 1)',
+                            'rgba(123, 104, 238, 1)',
+                            'rgba(255, 99, 132, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Costo (USD)' },
+                            ticks: { callback: function(value) { return '$' + value.toFixed(4); } }
+                        },
+                        x: { ticks: { callback: function(value) { const label = this.getLabelForValue(value); return formatLabel(label, 10); } } }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        title: { display: true, text: 'Costos Estimados de Mensajería para Colombia (por unidad)', padding: { top: 10, bottom: 20 }, font: { size: 16 } },
+                        tooltip: { callbacks: { label: function(context) { let label = context.dataset.label || ''; if (label) { label += ': '; } if (context.parsed.y !== null) { label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 4 }).format(context.parsed.y); } return label; } } }
+                    }
+                }
+            });
+        }
+
+        const apiKey = ""; 
+
+        async function callGeminiAPI(prompt, outputElement, spinnerElement) {
+            if (!outputElement || !spinnerElement) {
+                console.error("Output or spinner element not found for Gemini API call.");
+                return;
+            }
+            spinnerElement.style.display = 'block';
+            outputElement.style.display = 'none';
+            outputElement.textContent = '';
+
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            const payload = {
+                contents: [{ role: "user", parts: [{ text: prompt }] }]
+            };
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    console.error("Error from Gemini API:", errorData);
+                    throw new Error(`Error de la API: ${response.status} ${response.statusText}. Detalles: ${JSON.stringify(errorData.error?.message || errorData)}`);
+                }
+
+                const result = await response.json();
+
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const text = result.candidates[0].content.parts[0].text;
+                    outputElement.textContent = text;
+                } else {
+                    outputElement.textContent = "No se pudo obtener una respuesta con contenido del modelo. Verifique la consola para más detalles.";
+                    console.warn("Respuesta inesperada de la API de Gemini:", result);
+                }
+            } catch (error) {
+                console.error("Error al llamar a la API de Gemini:", error);
+                outputElement.textContent = `Error al generar contenido: ${error.message}. Por favor, inténtelo de nuevo más tarde.`;
+            } finally {
+                spinnerElement.style.display = 'none';
+                outputElement.style.display = 'block';
+            }
+        }
+
+        const personalizedContentBtn = document.getElementById('generatePersonalizedContentBtn');
+        if (personalizedContentBtn) {
+            personalizedContentBtn.addEventListener('click', () => {
+                const prompt = "Eres un experto en marketing para Koaj.co, una reconocida marca de moda colombiana para jóvenes y adultos jóvenes. Genera 3 ejemplos de mensajes de marketing altamente personalizados y atractivos:\n\n1.  **Línea de Asunto para Email:** Para un cliente que ha mostrado interés en 'nuevas colecciones de jeans para mujer'.\n2.  **Mensaje Corto de WhatsApp:** Para un cliente que abandonó un carrito con una 'chaqueta de cuero sintético'.\n3.  **Descripción de Producto Breve (2-3 frases):** Para una 'camiseta gráfica de edición limitada con diseño urbano'.\n\nEnfócate en un tono juvenil, moderno y que incite a la acción. Incluye emojis relevantes donde sea apropiado.";
+                const outputEl = document.getElementById('personalizedContentOutput');
+                const spinnerEl = document.getElementById('personalizedContentSpinner');
+                callGeminiAPI(prompt, outputEl, spinnerEl);
+            });
+        }
+
+        const journeyButtons = document.querySelectorAll('.gemini-button[data-journey-type]');
+        journeyButtons.forEach(button => {
+            if (button.id === 'generatePersonalizedContentBtn') return; 
+
+            button.addEventListener('click', () => {
+                const journeyType = button.dataset.journeyType;
+                const journeyName = button.dataset.journeyName;
+                const spinnerId = `journey${journeyType.split(" ")[0]}Spinner`; 
+                const outputId = `journey${journeyType.split(" ")[0]}Output`;   
+
+                const prompt = `Eres un estratega de marketing digital creativo para Koaj.co, una marca de moda colombiana líder, conocida por su estilo juvenil y tendencias actuales. Para un Customer Journey de '${journeyType}' (específicamente enfocado en '${journeyName}'), sugiere 3 ideas de contenido distintas y originales para enviar por email o WhatsApp. Cada idea debe incluir:\n\n1.  **Concepto Principal:** (Ej: "Detrás de Escena Exclusivo", "Reto de Estilo Koaj", "Tu Guía Personalizada de Tendencias")\n2.  **Mensaje Clave / CTA:** (Ej: "Descubre la magia de Koaj", "Participa y gana!", "Encuentra tu look perfecto ahora")\n3.  **Canal Sugerido:** (Email o WhatsApp)\n\nAsegúrate que las ideas sean atractivas, relevantes para la etapa del journey y reflejen la identidad de Koaj.co. Usa emojis si es apropiado.`;
+                
+                const outputEl = document.getElementById(outputId);
+                const spinnerEl = document.getElementById(spinnerId);
+                callGeminiAPI(prompt, outputEl, spinnerEl);
+            });
+        });
+
+    </script>
+</body>
+</html>
